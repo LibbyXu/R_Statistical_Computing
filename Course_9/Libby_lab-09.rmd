@@ -1,0 +1,190 @@
+---
+title: 'STAT 206 Lab 9_Lihua Xu'
+output: pdf_document
+---
+
+**Due Monday, December 4, 5:00 PM**
+
+***General instructions for labs***: You are encouraged to work in pairs to complete the lab.  Labs must be completed as an R Markdown file.  Be sure to include your lab partner (if you have one) and your own name in the file.  Give the commands to answer each question in its own code block, which will also produce plots that will be automatically embedded in the output file. Each answer must be supported by written statements as well as any code used. 
+
+***Agenda***: Simulate a Markov chain, adjust the behavior to ensure a fair game
+
+Markov Chains
+==========
+
+Suppose you have a game where the probability of winning on your first hand is 48%; each time you win, that probability goes up by one percentage point for the next game (to a maximum of 100%, where it must stay), and each time you lose, it goes back down to 48%. Assume you cannot go bust and that the size of your wager is a constant $100.
+
+1. Is this a fair game? Simulate one hundred thousand sequential hands to determine the size of your return. Then repeat this simulation 99 more times to get a range of values to calculate the expectation.
+
+```{r}
+Markov_C <- function(N,initial_winning,increment){
+m <- 0
+size <-100
+first_winning <- initial_winning
+for (i in 1:N){
+  A <- runif(1)
+  if (A <= initial_winning){
+    initial_winning <- initial_winning+increment
+    m <- m+1
+    size <- size+100}
+  else{initial_winning <- first_winning
+  size <- size-100
+  }
+}
+results <- list(winning_times=m,total_size=size)
+return(results)  
+}
+
+#Running for 99 times
+times <- c()
+size_total <- c()
+for (h in 1:99)
+{ times <- c(times,Markov_C(100000,0.48,0.01)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.48,0.01)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+ninenine_times
+```
+
+```{r}
+#Expectations
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+2. Repeat this process but change the starting probability to a new value within 2% either way. Get the expected return after 100 repetitions. Keep exploring until you have a return value that is as fair as you can make it. Can you do this automatically?
+
+```{r}
+#starting probability 49%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.49,0.01)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.49,0.01)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#starting probability 50%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.5,0.01)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.5,0.01)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#starting probability 47%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.47,0.01)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.47,0.01)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#starting probability 46%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.46,0.01)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.46,0.01)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#When the starting probability is 49% or 50%, the results would be more resonable. 
+#And I can do it automatically.
+```
+
+3. Repeat again, keeping the initial probability at 48%, but this time change the probability increment to a value different from 1%. Get the expected return after 100 repetitions. Keep changing this value until you have a return value that is as fair as you can make it.
+
+```{r}
+#probability increment 1.1%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.48,0.011)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.48,0.011)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#probability increment 1.2%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.48,0.012)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.48,0.012)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#probability increment 1.3%
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.48,0.013)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.48,0.013)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#probability increment 1.5
+times <- c()
+size_total <- c()
+for (h in 1:100)
+{ times <- c(times,Markov_C(100000,0.48,0.015)$winning_times)
+  size_total <- c(size_total, Markov_C(100000,0.48,0.015)$total_size)
+  }
+ninenine_times <- rbind(times,size_total)
+mean_winning_time <- mean(ninenine_times[1,])
+mean_size_total <- mean(ninenine_times[2,])
+mean_winning_time
+mean_size_total
+```
+
+```{r}
+#Based on the results I give above, When the probability increment is 
+#larger than or equal to 1.2% the results are more reasonable.
+```
+

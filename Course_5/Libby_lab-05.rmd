@@ -1,0 +1,166 @@
+---
+title: 'STAT 206 Lab 5_Lihua_Xu'
+output: pdf_document
+---
+
+**Due Monday, November 6, 5:00 PM**
+
+***General instructions for labs***: You are encouraged to work in pairs to complete the lab.  Labs must be completed as an R Markdown file.  Be sure to include your lab partner (if you have one) and your own name in the file.  Give the commands to answer each question in its own code block, which will also produce plots that will be automatically embedded in the output file. Each answer must be supported by written statements as well as any code used. 
+
+***Agenda***: Fitting models by optimization; transforming data from one representation to another; handling missing data
+
+Many theories of the diffusion of innovations (new technologies, practices, beliefs, etc.) suggest that the fraction of members of a group who have adopted the innovation by time $t$, $p(t)$, should follow a logistic curve or logistic function,
+\[
+p(t) = \frac{e^{b(t - t_0)}}{1 + e^{b(t - t_0)}}.
+\]
+We will look at a classic data set on the diffusion of innovations, which is supposed to show such a curve. It concerns a survey of 246 doctors in four towns in Illinois in the early 1950s, and when they began prescribing (adopted) a then-new antibiotic, tetracycline, and how they became convinced that they should do so (from medical journals, from colleagues, etc.).
+
+Load the file [http://faculty.ucr.edu/~jflegal/206/ckm_nodes.csv].  Each row is a doctor. The column adoption date shows how many months, after it became available, each doctor began prescribing tetracycline. Doctors who had not done so by the end of the survey, i.e., after month 17, have a value of `Inf` in this column. This information is not available (`NA`) for some doctors. There are twelve other variables which may also be `NA`.
+
+1. The Model.
+    a. Write a function, `logistic`, which calculates the logistic function. It should take two arguments, `t` and `theta`. The `theta` argument should be a vector of length two, the first component being the parameter $b$ and the second component being $t_0$. Your function may not use any loops. Plot the curve of the logistic function with $b=0.05$, $t_0=3$, from $t=-30$ to $t=30$.
+    b. Explain why $p(t_0)=0.5$, no matter what $b$ is. Use this to check your logistic function at multiple combinations of $b$ and $t_0$.
+    c. Explain why the slope of $p(t)$ at $t=t_0$ is $b/4$. (Hint: calculus.) Use this to check your `logistic` function at multiple combinations of $b$ and $t_0$.
+    
+```{r}
+logistic <- function(t, theta)exp(theta$b*(t-theta$t0))/(1+exp(theta$b*(t-theta$t0)))
+```
+
+```{r}
+##1(a)
+t <- c(-30,30)
+theta <- c(0.05, 3)
+names(theta) <- c("b", "t0")
+theta <- as.list(theta)
+curve(logistic(x,theta),from=t[1],to=t[2],xlab="t",ylab="p(t)")
+```
+
+```{r}
+##1(b)
+#When t=t0, the function will reduced to p(t0)=1/(1+1), which is always equal to 0.5.
+#Trying b=5,t0=12
+exp(5*(12-12))/(1+exp(5*(12-12)))
+#Trying b=6,t0=25
+exp(6*(25-25))/(1+exp(6*(25-25)))
+#Trying b=24,t0=50
+exp(24*(50-50))/(1+exp(24*(50-50)))
+```
+
+```{r}
+##1(c)
+```
+The derivition of the logistic function is $p'(t) = \frac{b*e^{b(t - t_0)}}{(1 + e^{b(t - t_0)})^2}$. When t=t0, the result for the derivitive would be $b/(1+1)^2$, which is $b/4$.
+
+```{r}
+#Trying b=5,t0=12 and b/4 is 1.25
+(5*exp(5*(12-12)))/(1+exp(5*(12-12)))^2
+#Trying b=6,t0=25 and b/4 is 1.5
+(6*exp(6*(25-25)))/(1+exp(6*(25-25)))^2
+#Trying b=24,t0=50 and b/4 is 6
+(24*exp(24*(50-50)))/(1+exp(24*(50-50)))^2
+```
+
+2. The Data.
+    a. How many doctors in the survey had adopted tetracycline by month 5? Hint: Use `na.omit` carefully.
+    b. What proportion of doctors, for whom adoption dates are available, had adopted tetracycline by month 5?
+    c. Create a vector, `prop_adopters`, storing the proportion of doctors who have adopted by each month. (Be careful about `Inf` and `NA`.)
+    d. Make a scatter-plot of the proportion of adopters over time.
+    e. Make rough guesses about $t_0$ and $b$ from the plot, and from your answers in problem 1.
+    
+```{r}
+##2(a)
+data <- read.csv("http://faculty.ucr.edu/~jflegal/206/ckm_nodes.csv")
+#"By month 5" means equal to or less than 5 month.
+data_new <- cbind(data$city, data$adoption_date)
+colnames(data_new) <- c("city","adoption_date")
+data_new <- as.data.frame(data_new)
+data_new <- na.omit(data_new) #Anather way:data_new <- data[!is.na(data[,2]),]
+dim(data_new[data_new$adoption_date<=5,])[1]
+#There are 51 doctors had adopted tetracycline by month 5
+```
+
+```{r}
+##2(b)
+available_data <- dim(data_new)[1]
+proportion <- dim(data_new[data_new$adoption_date<=5,])[1]/available_data
+proportion
+#The proportion should be 0.408.
+```
+
+```{r}
+##2(c)
+maximun_adoption <- max(data_new[!is.infinite(data_new[,2]),]$adoption_date)
+#Except inf number, the maxmum adoption_date is 17 monthes.
+#For the convinience, we substitute inf with a value 100.
+data_new[,2][is.infinite(data_new[,2])] <- 100
+prop_adopters <- c()
+for (i in 1:maximun_adoption){
+  prop_adopters <- c(prop_adopters,dim(data_new[data_new$adoption_date<=i,])[1]/available_data)}
+prop_adopters <-  c(prop_adopters,dim(data_new[data_new$adoption_date<=100,])[1]/available_data) 
+#The vector should be:
+prop_adopters
+```
+
+```{r}
+##2(d)
+#For this plot I will only include the monthes from 1 to 17.
+plot(x=1:17,y=prop_adopters[1:17],xlab="Month",ylab="Proportion of Adoption")
+```
+
+```{r}
+##2(e)
+#My rough guess for b and to are 0.24 and 7 respectively.And the plot would be like the following:
+t <- c(1,17)
+theta <- c(0.24, 7)
+names(theta) <- c("b", "t0")
+theta <- as.list(theta)
+plot(x=1:17,y=prop_adopters[1:17],xlab="Month",ylab="Proportion of Adoption")
+curve(logistic(x,theta),from=t[1],to=t[2],xlab="t",ylab="p(t)",add=TRUE,col="blue")
+```
+
+3. The Fit. 
+    a. Write a function, `logistic_mse`, which calculates the mean squared error of the logistic model on this data set. It should take a single vector, `theta`, and return a single number. This function cannot contain any loops, and must use your `logistic` function.
+    b. Use `optim` to minimize `logistic_mse`, starting from your rough guess in problem 2e. Report the location and value of the optimum to reasonable precision. (By default, R prints to very unreasonable precision.)
+    c. Add a curve of the fitted logistic function to your scatterplot from Problem 2d. Does it seem like a reasonable match?
+
+```{r}
+##3(a)
+#Make the dataset without inf and NA in adoption_date column.
+data_set <- cbind(data$city, data$adoption_date)
+colnames(data_set) <- c("city","adoption_date")
+data_set <- as.data.frame(data_set)
+data_set[,2][is.infinite(data_set[,2])] <- NA
+data_set <- na.omit(data_set)
+
+#Putting the upper logistic function to this place
+logistic <- function(t, theta) exp(theta[1]*(t-theta[2]))/(1+exp(theta[1]*(t-theta[2])))
+
+#Writing the logistic_mse function
+logistic_mse <- function(theta){
+ data_vector <- logistic(1:17,theta)
+ mse_data_vector<- mean((prop_adopters[1:17]-data_vector)^2)
+ return(mse_data_vector)}
+```
+
+```{r}
+##3(b)
+theta <- c(0.24, 7)
+names(theta) <- c("b", "t0")
+theta <- as.list(theta)
+optim(theta,logistic_mse,method="BFGS",hessian = TRUE,control=list(maxit=1000))
+#The optimum b and t0 is 0.2545799 and 6.7820488 respectvely.
+#0.002826878 is the value of logistic_mse corresponding to the above parameters.
+#As I use the "BFGS" method, the covvergence shows 0, which indicates successful completion. 
+```
+
+```{r}
+##3(c)
+t <- c(1,17)
+theta <- c(0.2545799,6.7820488)
+plot(x=1:17,y=prop_adopters[1:17],xlab="Month",ylab="Proportion of Adoption")
+curve(logistic(x,theta),from=t[1],to=t[2],xlab="t",ylab="p(t)",add=TRUE,col="blue")
+#It seems like a reasonable match.
+```
+
+
+

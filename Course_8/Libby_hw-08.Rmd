@@ -1,0 +1,319 @@
+---
+title: "STAT 206 Homework 8_Lihua Xu"
+output: pdf_document
+---
+
+**Due Thursday, December 7, 5:00 PM**
+
+***General instructions for homework***: Homework must be completed as an R Markdown file.  Be sure to include your name in the file.  Give the commands to answer each question in its own code block, which will also produce plots that will be automatically embedded in the output file. Each answer must be supported by written statements as well as any code used.  (Examining your various objects in the "Environment" section of RStudio is insufficient -- you must use scripted commands.)
+
+Part I - Metropolis-Hasting algorithm
+==========
+
+Suppose $f \sim \Gamma(2,1)$.
+
+1. Write an independence MH sampler with $g \sim \Gamma(2, \theta)$.
+
+```{r}
+ind.chain <- function(x, n, theta) {
+  m <- length(x)
+  x <- append(x, double(n))
+  for(i in (m+1):length(x)){
+    x.prime <- rgamma(1,shape=2, rate=theta)
+    u <- exp(-theta*x[(i-1)]-x.prime+x[(i-1)]+theta*x.prime)
+    if(runif(1) < u)
+      x[i] <- x.prime
+    else
+      x[i] <- x[(i-1)]
+  }
+  return(x)
+}
+```
+
+2. What is $R(x_t, X^*)$ for this sampler?
+
+Solution:
+As $f \sim \Gamma(2,1)$:
+\[
+f = \begin{cases} \frac{1}{\Gamma(2)}xe^{-x} \mbox{ x > 0 }  \\ 0 \mbox{ otherwise } \end{cases}
+\]
+and for $g \sim \Gamma(2, \theta)$:
+\[
+g = \begin{cases} \frac{\theta^2}{\Gamma(2)}xe^{-\theta x} \mbox{ x > 0 }  \\ 0 \mbox{ otherwise } \end{cases}
+\]
+
+So we cat get $R(x_t,x^*)$ by the following equation:
+\[
+R(x_t,x^*) =  \frac{f(x^*) g (x_t | x^*)}{f(x_t) g (x^* | x_t)}
+\]
+\[
+R(x_t,x^*) =  \frac{e^{-x^*}*e^{-\theta x_t}}{e^{-x_t}*e^{-\theta x^*}}
+\]
+
+3. Generate 10000 draws from $f$ with $\theta \in \{ 1/2, 1, 2 \}$.
+
+```{r}
+trial0 <- ind.chain(1, 10000, 1)
+trial1 <- ind.chain(1, 10000, 2)
+trial2 <- ind.chain(1, 10000, 1/2)
+#I will not show the result as it is too long.
+```
+
+4. Write a random walk MH sampler with $h \sim N(0, \sigma^2)$.
+
+```{r}
+rw.chain <- function(x, n, sigma) {
+  m <- length(x)
+  x <- append(x, double(n))
+  for(i in (m+1):length(x)){
+    x.prime <- x[(i-1)] + rnorm(1,mean=0,sd = sigma)
+    u <- (x.prime*exp(-x.prime))/(x[(i-1)]*exp(-x[(i-1)]))
+    if(runif(1) < u && x.prime > 0)
+      {x[i] <- x.prime}
+    else
+      {x[i] <- x[(i-1)]}
+  }
+  return(x)
+}
+```
+
+5. What is $R(x_t, X^*)$ for this sampler?
+Solution:
+The function for $h \sim N(0, \sigma^2)$:
+\[
+h = \frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{x_t^2}{2\sigma^2}} 
+\]
+\[
+R(x_t,x^*) =  \frac{x^*e^{-x^*}*e^{\frac{(x_t)^2}{2\sigma^2}}}{x_te^{-x_t}*e^{-\frac{(x^*)^2}{2\sigma^2}}}
+\]
+\[
+R(x_t,x^*) =  \frac{x^*e^{-x^*}}{x_te^{-x_t}}I(x^* > 0)
+\]
+
+6. Generate 10000 draws from $f$ with $\sigma \in \{ .2, 1, 5 \}$.
+
+```{r}
+rw1 <- rw.chain(1, 10000, .2)
+rw2 <- rw.chain(1, 10000, 1)
+rw3 <- rw.chain(1, 10000, 5)
+#I will not show the result as it is too long.
+```
+
+7. In general, do you prefer an independence chain or a random walk MH sampler?  Why?
+
+```{r}
+par(mfrow=c(2,3))
+plot.ts(trial0, ylim=c(0,15), main="IID Draws")
+plot.ts(trial1, ylim=c(0,15), main="Independence with 2")
+plot.ts(trial2, ylim=c(0,15), main="Independence with 1/2")
+plot.ts(rw1, ylim=c(0,15), main="Random Walk with .2")
+plot.ts(rw2, ylim=c(0,15), main="Random Walk with 1")
+plot.ts(rw3, ylim=c(0,15), main="Random Walk with 5")
+par(mfrow=c(1,1))
+# Except the dist one, which is the IID draws, 
+# the third figure named as "Independence with 1/2" is the best.
+# For me, I will more prefer an independence chain with 1/2.
+# It will not stuck to the large values and is more close to the plot of IID Draws. 
+```
+
+8. Implement the fixed-width stopping rule for you preferred chain.
+
+```{r}
+ind.chain.implement <- function(x, n, theta, epsilon) {
+  m <- length(x)
+  x <- append(x, double(n))
+  for(i in (m+1):length(x)){
+    x.prime <- rgamma(1,shape=2, rate=theta)
+    u <- exp(-theta*x[(i-1)]-x.prime+x[(i-1)]+theta*x.prime)
+    if(runif(1) < u)
+      x[i] <- x.prime
+    else
+      x[i] <- x[(i-1)]
+    sigma_bar <- sd(x)
+    if((1.96*sqrt(sigma_bar)/sqrt(i)) < epsilon)
+      break
+  }
+  data <- list(x,i)
+  return(data)
+}
+```
+
+```{r}
+#when we assume the epsilon equal to 0.02 
+#("Relative fixed-width stopping rules for Markov chain Monte Carlo simulations--
+#--James M. Flegal and Lei Gong"), then 
+trial3 <- ind.chain.implement(1, 100000, 1, 0.02)
+#The number of times needed:
+trial3[[2]]
+trial4 <- ind.chain.implement(1, 100000, 2, 0.02)
+#The number of times needed:
+trial4[[2]]
+trial5 <- ind.chain.implement(1, 100000, 1/2, 0.02)
+#The number of times needed:
+trial5[[2]]
+```
+
+
+Part II - **Anguilla** eel data
+==========
+
+Consider the **Anguilla** eel data provided in the `dismo` R package. The data consists of 1,000 observations from a New Zealand survey of site-level presence or absence for the short-finned eel (Anguilla australis). We will use six out of twelve covariates. Five are continuous variables: `SegSumT`, `DSDist`, `USNative`, `DSMaxSlope` and `DSSlope`; one is a categorical variable: `Method`, with five levels `Electric`, `Spo`, `Trap`, `Net` and `Mixture`.
+
+Let $x_i$ be the regression vector of covariates for the $i$th observation of length $k$ and ${\pmb \beta} = \left( \beta_0, \dots, \beta_9 \right)$ be the vector regression coefficients.  For the $i$th observation, suppose $Y_i = 1$ denotes presence and $Y_i = 0$ denotes absence of Anguilla australis. Then the Bayesian logistic regression model is given by
+\[
+\begin{aligned}
+Y_i & \sim Bernoulli(p_i) \; , \\
+p_i & \sim {\exp(x_i^{T}{\pmb \beta}) \over 1+\exp(x_i^{T}{\pmb \beta})} \; \text{ and,} \\ 
+{\pmb \beta} & \sim N({\pmb 0}, \sigma_{\beta}^2{\bf I}_k) \; ,
+\end{aligned}
+\]
+where ${\bf I}_k$ is the $k \times k$ identity matrix. For the analysis, $\sigma_{\beta}^2=100$ was chosen to represent a diffuse prior distribution on ${\pmb \beta}$.  
+
+9. Implement an MCMC sampler for the target distribution using the `MCMClogit` function in the `MCMCpack` package.
+
+```{r}
+#install.packages("dismo")
+library("dismo")
+#install.packages("MCMCpack")
+library("MCMCpack")
+#install.packages("mcmcse")
+library("mcmcse")
+```
+
+```{r}
+data(Anguilla_train)
+posterior <- MCMClogit(Angaus~SegSumT+DSDist+USNative+DSMaxSlope+USSlope+Method,
+                       data=Anguilla_train,b0=0,B0=0.01)
+```
+
+10. Comment on the mixing properties for your sampler.  Include at least one plot in support of your comments.
+
+```{r}
+plot(posterior)
+summary(posterior)
+#When parameters are highly correlated with each other. 
+#Poor mixing means that the Markov chain slowly traverses the parameter space 
+#(Trace plots above) and the chain has high dependence.
+#The trace tells if the chain has not converged to its stationary distribution 
+#and also tells if it needs a longer period. 
+#The trace plot can also tell whether the chain is mixing well. 
+#If the distribution for the points is not changing along the chain, 
+#this chain might reach to stationarity situation. 
+```
+
+11. Run your sampler for 100,000 iterations.  Estimate the posterior mean along with an 80\% Bayesian credible interval for each regression coefficient in the model.  Be sure to include uncertainty estimates.
+
+```{r}
+posterior_100000 <- MCMClogit(Angaus~SegSumT+DSDist+USNative+DSMaxSlope+USSlope+Method,
+                              data=Anguilla_train,
+                              b0=0,B0=0.01,mcmc=100000)
+mcse.q.mat(posterior_100000,0.1)
+mcse.q.mat(posterior_100000,0.9)
+#The value should be between these two different quantiles.
+```
+
+12. Compare your Bayesian estimates to those obtained via maximum likelihood estimation.
+
+```{r}
+fit_glm <- glm(Angaus~., data=Anguilla_train)
+summary(fit_glm)$coefficient
+```
+
+```{r}
+#Compared this two method, Bayesian estimates is more accurate than maximum likelihood estimation. 
+#Bayesian estimation fully calculates the posterior distribution. 
+#theta was treated as a random variable in Bayesian inference. 
+#We put in and get out PDF in Bayesian estimation, rather than a single point as in MLE.
+```
+
+
+Part II - Permutation tests
+==========
+
+The Cram\'er von Mises statistic estimates the integrated square distance between distributions. It can be computed using the following formula
+\[
+W=\frac{mn}{(m+n)^2}\left[ \sum_{i=1}^n(F_n(x_i)-G_m(x_i))^2 +\sum_{j=1}^m (F_n(y_j)-G_m(y_j))^2\right]
+\]
+where $F_n$ and $G_m$ are the corresponding empirical cdfs. 
+
+13. Implement the two sample Cram\'er von Mises test for equal distributions as a permutation test. Apply it to the `chickwts` data.
+
+```{r}
+data("chickwts")
+## soybean and linseed
+x <- with(chickwts, sort(as.vector(weight[feed == "soybean"])))
+y <- with(chickwts, sort(as.vector(weight[feed == "linseed"])))
+r <- 1000
+value <- vector(mode="numeric", length=r)
+n <- length(x);m <- length(y) 
+n_0 <- vector(mode="numeric", length=n);n_1 <- vector(mode="numeric", length=n)
+m_0 <- vector(mode="numeric", length=m);m_1 <- vector(mode="numeric", length=m)
+z <- c(x, y)
+N <- length(z)
+for(i in 1:n){n_0[i] <- (x[i]-i)**2}
+for(j in 1:m){m_0[j] <- (y[j]-j)**2}
+# statistic
+value_0 <- ((n*sum(n_0)+m*sum(m_0))/(m*n*N))-(4*m*n-1)/(6*N)
+# Permautation
+for (k in 1:r) { 
+  w <- sample(N, size = n, replace = FALSE)
+  x1 <- sort(z[w])
+  y1 <- sort(z[-w])
+  for (i in 1:n){n_1[i] <- (x1[i]-i)**2}
+  for (j in 1:m){m_1[j] <- (y1[j]-j)**2}
+  value[k] <- ((n*sum(n_1)+m*sum(m_1))/(m*n*N))-(4*m*n-1)/(6*N)}
+p <- mean(c(value_0, value)>=value_0)
+hist(value,xlab = "Replicates of Cramér-Von Mises (CVM) statistic",
+     main="Permutation Distribution")
+points(value_0,0, cex=1, pch=16)
+#P value is:
+p
+```
+
+14. How would you implement the bivariate Spearman rank correlation test for independence as a permutation test? The Spearman rank correlation test statistic can be obtained from the function `cor` with `method="spearman"`. Compare the achieved significance level of the permutation test with the p-value reported by `cor.test` on the same samples.
+
+```{r}
+data("iris")
+#setosa
+data_1 <- as.matrix(iris[1:50, 1:4])
+x <- (data_1[ ,1:2])
+y <- (data_1[ ,3:4])
+cor(x,y, method = "spearman")
+cor.test(x, y, method = "spearman", exact = FALSE)$estimate
+#versicolor
+data_2 <- as.matrix(iris[51:100, 1:4])
+x <- (data_2[ ,1:2])
+y <- (data_2[ ,3:4])
+cor(x,y, method = "spearman")
+cor.test(x, y, method = "spearman", exact = FALSE)$estimate
+#virginica
+data_3 <- as.matrix(iris[101:150, 1:4])
+x <- (data_3[ ,1:2])
+y <- (data_3[ ,3:4])
+cor(x,y, method = "spearman")
+cor.test(x, y, method = "spearman", exact = FALSE)$estimate
+```
+
+```{r}
+library(boot)
+#Using data_1 (setosa) as an example
+z <- data_1
+rho <- function(z,i){ 
+  x <- z[ ,1:2];y <- z[i,3:4]
+  return(cor.test(x, y, method = "spearman", exact = FALSE)$estimate)}
+#significance level: 1000 permutation samples
+permutation_test <- boot(data=z,statistic=rho,sim ="permutation",R=1000)
+#p-value
+p <- with(permutation_test, mean(c(t,t0)>=t0))
+p
+# BSRCT means Permutation distribution of the bivariate Spearman rank correlation test
+hist(with(permutation_test, c(t, t0)),xlab = "Replicates correlation",
+     main="Permutation distribution of the BSRCT")
+points(permutation_test$t0,0, cex=1, pch=16)
+```
+
+```{r}
+#The P value from the permutation test is smaller than 
+#that reported by `cor.test` on the same samples 
+```
+
